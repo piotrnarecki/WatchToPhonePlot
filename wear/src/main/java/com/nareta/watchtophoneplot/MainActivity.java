@@ -16,6 +16,7 @@ import android.support.wearable.activity.WearableActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import com.google.android.gms.tasks.Task;
@@ -35,17 +36,18 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     private Button exitButton;
     //  private Button talkButton;
 
+
+
     private TextView hrOutput;
 
 
 // przesyłanie
-
     int receivedMessageNumber = 1;
     //int sentMessageNumber = 1;
 
 
     //pola
-    private boolean isOn;
+    private boolean isOn = false;
 
     private float xAcc;
     private float yAcc;
@@ -54,8 +56,8 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     // czujniki
     private SensorManager sensorManager;
-    Sensor senAccelerometer;
-    Sensor senHeartRate;
+    private Sensor senAccelerometer;
+    private Sensor senHeartRate;
 
 
     //wiadomosc
@@ -77,6 +79,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         startButton = findViewById(R.id.startButton);
         exitButton = findViewById(R.id.exitButton);
         hrOutput = findViewById(R.id.hrOutput);
+
+
+
 
         // Enables Always-on
         setAmbientEnabled();
@@ -110,6 +115,11 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
         // Enables Always-on
         setAmbientEnabled();
+
+
+
+
+
     }
 
 
@@ -124,7 +134,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
             boolean sensorRegistered = sensorManager.registerListener(this,
                     sensorManager.getDefaultSensor(Sensor.TYPE_HEART_RATE),
-                    SensorManager.SENSOR_DELAY_NORMAL);
+                    SensorManager.SENSOR_DELAY_GAME);
             Log.d("Sensor Status:", " Sensor registered: " + sensorRegistered);
 
             messageRunnable.run();
@@ -191,12 +201,12 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         if (mySensor.getType() == Sensor.TYPE_HEART_RATE) {
 
             heartRate = sensorEvent.values[0];
-hrOutput.setText(heartRate + " BMP");
+            hrOutput.setText(heartRate + " BMP");
 
         }
 
         //sensorsMessage = accOutputText + '\n' + "heart rate " + heartRate + " BPM";
-        sensorsMessage = xAcc + ";" + yAcc + ";" +zAcc +  ";" + heartRate;
+        sensorsMessage = xAcc + ";" + yAcc + ";" + zAcc + ";" + heartRate;
 
 
     }

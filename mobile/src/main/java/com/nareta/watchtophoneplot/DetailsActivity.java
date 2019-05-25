@@ -111,7 +111,7 @@ public class DetailsActivity extends AppCompatActivity {
             Intent intent = new Intent(getApplicationContext(), MainActivity.class);
             intent.putExtra("ID", ID);
             startActivity(intent);
-
+            finish();
 
         } else {
             nameInput.setText("Enter data !");

@@ -1,18 +1,26 @@
 package com.nareta.watchtophoneplot;
 
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
+import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Legend;
@@ -27,7 +35,14 @@ import com.google.android.gms.tasks.Tasks;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
@@ -35,6 +50,9 @@ public class MainActivity extends AppCompatActivity {
     //PLOTS
 
     private static final String TAG = "MainActivity";
+
+    //
+    int progress = 0;
 
 
     //wykres
@@ -44,23 +62,29 @@ public class MainActivity extends AppCompatActivity {
     private LineChart hrChart;
 
 
-
     private int pointsOnChart = 60;   // przy oswiezaniu co 500ms daje na wykresie podglad z 30s
 
 
     private int refreshTime = 500;
 
-    private Thread thread;
+
+    private Thread messageThread;
     private boolean plotData = true;
 
 
-    //PLOTS END
-
-
+    //obiekty GUI
     private TextView textview;
-    private TextView refreshOutput;
+    private TextView timeOutput;
+    private Switch measureTypeSwitch;
+
+    private Button detailsButton;
+    private Button startButton;
+    private Button stopButton;
+    private Button restartButton;
+
 
     protected Handler myHandler;
+
 
     int sentMessageNumber = 1;
 
@@ -69,11 +93,32 @@ public class MainActivity extends AppCompatActivity {
     private String[] messageArray;
 
     //dane do wykresów
-
     float xAcc;
     float yAcc;
     float zAcc;
     float heartRate;
+
+
+    //watek zapisujacy
+    private int measureTime = 120; //sekundy //zamienic na 120 (bo mierzy co 500ms a pomiar ma byc prowadzony przez minute)
+    private int timeBetween = 500; //milisekundy
+
+    private int seconds = measureTime;
+    private boolean running;
+    private boolean wasRunning;
+
+    private Handler timerHandler = new Handler();
+    private Runnable timerRunnable;
+
+    //tablice do zapisywania
+    private List<Double> xAccList = new ArrayList<>();
+    private List<Double> yAccList = new ArrayList<>();
+    private List<Double> zAccList = new ArrayList<>();
+    private List<Double> heartRateList = new ArrayList<>();
+
+    //zapis
+    private String measureType;
+    private String ID;
 
 
     @Override
@@ -83,12 +128,36 @@ public class MainActivity extends AppCompatActivity {
 
         this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); //  aplikacja dziala tylko w pionie
 
-
+//referecje
         textview = (TextView) findViewById(R.id.textView);
-refreshOutput=(TextView)findViewById(R.id.refreshOutput);
+        timeOutput = (TextView) findViewById(R.id.timeOutput);
+        measureTypeSwitch = (Switch) findViewById(R.id.measureTypeSwitch);
+
+        detailsButton = (Button) findViewById(R.id.detailsButton);
+        startButton = (Button) findViewById(R.id.startButton);
+        stopButton = (Button) findViewById(R.id.stopButton);
+        restartButton = (Button) findViewById(R.id.restartButton);
+
+        //dane z poprzedniej aktywności
+        Bundle data = getIntent().getExtras();
+        if (data != null) {
+            ID = data.getString("ID");
+        }
 
 
-refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
+//pozwolenia
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
+        }
+
+        //watek zapisujacy
+        if (savedInstanceState != null) {
+            seconds = savedInstanceState.getInt("seconds");
+            running = savedInstanceState.getBoolean("running");
+            wasRunning = savedInstanceState.getBoolean("wasRunning");
+        }
+
+        runTimer();
 
 
         myHandler = new Handler(new Handler.Callback() {
@@ -139,7 +208,6 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
         xChart.setScaleEnabled(false);
         xChart.setDrawGridBackground(false);
         xChart.setPinchZoom(false); ///// tutaj
-        // xChart.setBackgroundColor(Color.WHITE);
 
 
         //data
@@ -299,7 +367,7 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
         hrLeftAxis.setDrawGridLines(false);
 
         //skala osi y
-        hrLeftAxis.setAxisMaximum(120f);
+        hrLeftAxis.setAxisMaximum(110f);
         hrLeftAxis.setAxisMinimum(60f);
 
 
@@ -324,14 +392,215 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
     }
 
 
+    // metoda pozwolenia
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case 1000:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Permission not granted", Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+        }
+    }
+
+
+    //metoda zapisująca
+    private void saveTextAsFile(String filename, String content) {
+        String fileName = filename + ".txt";
+
+        //tworzenie pliku
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), fileName);
+
+        //wpisz do pliku
+        try {
+            FileOutputStream fileOutputStream = new FileOutputStream(file);
+            fileOutputStream.write(content.getBytes());
+            fileOutputStream.close();
+            Toast.makeText(this, "Saved" + " type: " + measureType, Toast.LENGTH_SHORT).show();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
+        }
+
+
+    }
+
+    public void automaticSave() {
+
+
+
+
+        if (measureTypeSwitch.isChecked()) {
+            measureType = "hyperventilation";
+        } else {
+            measureType = "normal";
+        }
+
+
+        String filename = ID + "_" + measureType;
+        String content = listsToString(xAccList, yAccList, zAccList, heartRateList);
+
+
+        if (!content.equals("")) {
+
+            saveTextAsFile(filename, content);
+
+
+        } else {
+            Toast.makeText(this, "Enter file name", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    //watek zapisujacy
+
+    //metody przyciskow
+
+    public void startPressed(View view) {
+        clearLists();
+        running = true;
+    }
+
+
+    public void stopPressed(View view) {
+        running = false;
+    }
+
+
+    public void restartPressed(View view) {
+        running = false;
+        seconds = measureTime;
+        clearLists();
+
+    }
+
+
+    public void detailsPressed(View view) {
+
+        Intent intent = new Intent(getApplicationContext(), DetailsActivity.class);
+        startActivity(intent);
+
+    }
+
+
+    public void runTimer() {
+
+
+        timerHandler.post(timerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                int hours = seconds / 3600;
+                int minutes = (seconds % 3600) / 60;
+                int secs = seconds % 60;
+
+
+                String time = String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, secs);
+                timeOutput.setText(time);
+
+
+                if (running) {
+                    seconds--;
+                    addToLists(xAcc, yAcc, zAcc, heartRate);
+                }
+
+                timerHandler.postDelayed(this, 500);
+
+
+                if (seconds == 0) {
+                    running = false;
+                    timerHandler.removeCallbacksAndMessages(timerRunnable);
+
+                    automaticSave();
+
+
+                    if (!measureTypeSwitch.isChecked()) {
+                        measureTypeSwitch.setChecked(true);
+                        seconds = measureTime;
+                    }
+
+                }
+            }
+        });
+
+
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState); // to dopisalem zeby dzialalo
+        savedInstanceState.putInt("seconds", seconds);         //wczesniej bylo int
+        savedInstanceState.putBoolean("running", running);
+        savedInstanceState.putBoolean("wasRunning", wasRunning);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        wasRunning = running;
+        running = false;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (wasRunning) {
+            running = true;
+        }
+    }
+
+    //metoda wrzucajca dane do list
+    public void addToLists(float xAcc, float yAcc, float zAcc, float light) {
+
+        xAccList.add(Double.valueOf(xAcc));
+        yAccList.add(Double.valueOf(yAcc));
+        zAccList.add(Double.valueOf(zAcc));
+        heartRateList.add(Double.valueOf(light));
+
+    }
+
+    public void clearLists() {
+        xAccList.clear();
+        yAccList.clear();
+        zAccList.clear();
+        heartRateList.clear();
+    }
+
+    public String listsToString(List xAccList, List yAccList, List zAccList, List lightList) {
+
+        String listsString = "";
+        String listsStringLine = "";
+
+
+        if (xAccList.size() == yAccList.size() && yAccList.size() == zAccList.size() && zAccList.size() == lightList.size()) {
+
+            for (int i = 0; i < xAccList.size(); i++) {
+                listsStringLine = String.valueOf(i + 1) + '\t' + xAccList.get(i).toString() + '\t' + yAccList.get(i).toString() + '\t' + zAccList.get(i).toString() + '\t' + lightList.get(i).toString() + '\n'; // '\t' wczesniej bylo ";" i bez  toString()
+                listsString = listsString + listsStringLine;
+            }
+
+
+            //String.valueOf(i+1) oznacza sekunde pomiaru // DOPRACOWAC GDY POMIAR BEDZIE WYKONYWANY CO 0,5s
+
+        }
+
+        return listsString;
+    }
+
+
     //wykresy
 
 
     private void startPlot() {
-        if (thread != null) {
-            thread.interrupt();
+        if (messageThread != null) {
+            messageThread.interrupt();
         }
-        thread = new Thread(new Runnable() {
+        messageThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while (true) {
@@ -340,7 +609,6 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
 
                     try {
 
-                        //
 
                         Thread.sleep(refreshTime);
 
@@ -354,7 +622,7 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
             }
         });
 
-        thread.start();
+        messageThread.start();
 
 
     }
@@ -390,10 +658,10 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
             messageArray = message.split(";");
 
 
-            float xAcc = Float.valueOf(messageArray[0]);
-            float yAcc = Float.valueOf(messageArray[1]);
-            float zAcc = Float.valueOf((messageArray[2]));
-            float heartRate = Float.valueOf(messageArray[3]);
+            xAcc = Float.valueOf(messageArray[0]);
+            yAcc = Float.valueOf(messageArray[1]);
+            zAcc = Float.valueOf((messageArray[2]));
+            heartRate = Float.valueOf(messageArray[3]);
 
             String sensorsMessage = String.valueOf(xAcc) + " m/s^2" + '\n' + String.valueOf(yAcc) + " m/s^2" + '\n' + String.valueOf(zAcc) + " m/s^2" + '\n' + String.valueOf(heartRate) + " BPM";
             textview.setText(sensorsMessage);
@@ -451,7 +719,7 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
     @Override
     protected void onDestroy() {
 
-        thread.interrupt();
+        messageThread.interrupt();
         super.onDestroy();
     }
 
@@ -460,8 +728,8 @@ refreshOutput.setText("refresh time:" + '\n' + refreshTime + " ms");
     protected void onPause() {
         super.onPause();
 
-        if (thread != null) {
-            thread.interrupt();
+        if (messageThread != null) {
+            messageThread.interrupt();
         }
 
 
