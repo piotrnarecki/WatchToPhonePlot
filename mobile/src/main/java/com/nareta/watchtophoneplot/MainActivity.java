@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -39,10 +40,11 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
@@ -83,10 +85,22 @@ public class MainActivity extends AppCompatActivity {
     private Button restartButton;
 
 
+    private Switch sendToDesktopSwitch;
+
+
     protected Handler myHandler;
 
 
     int sentMessageNumber = 1;
+
+
+    //przesyl do pc
+
+    private static Socket socket;
+    private static PrintWriter printWriter;
+    private static String IP = "192.168.1.2";
+
+    private static String messageToDesktop = "";
 
 
     //zamiana wiadomosci na dane
@@ -137,6 +151,10 @@ public class MainActivity extends AppCompatActivity {
         startButton = (Button) findViewById(R.id.startButton);
         stopButton = (Button) findViewById(R.id.stopButton);
         restartButton = (Button) findViewById(R.id.restartButton);
+
+
+        sendToDesktopSwitch = (Switch) findViewById(R.id.sendToDesktopSwitch);
+
 
         //dane z poprzedniej aktywności
         Bundle data = getIntent().getExtras();
@@ -432,8 +450,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void automaticSave() {
-
-
 
 
         if (measureTypeSwitch.isChecked()) {
@@ -761,6 +777,9 @@ public class MainActivity extends AppCompatActivity {
 
 
             if (message.equalsIgnoreCase("finish")) {
+
+                sendToDesktopSwitch.setChecked(false);
+
                 finish();
             } else {
 
@@ -773,11 +792,62 @@ public class MainActivity extends AppCompatActivity {
                 }
 
 
+                //przesyl do pc
+
+
+                if (sendToDesktopSwitch.isChecked()) {
+
+                    sendToDesktop();
+                }
+
+
+                //
+
+
             }
 
 
         }
     }
+
+
+    // przesyl do pc
+
+    public void sendToDesktop() {
+
+
+        messageToDesktop = heartRate + " BPM " + "X=" + xAcc + " Y=" + yAcc + " Z=" + zAcc;
+        MyTask myTask = new MyTask();
+        myTask.execute();
+        // Toast.makeText(getApplicationContext(), "Data sent", Toast.LENGTH_LONG).show();
+    }
+
+    class MyTask extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected Void doInBackground(Void... voids) {
+
+            try {
+
+
+                socket = new Socket(IP, 5000);
+
+                printWriter = new PrintWriter(socket.getOutputStream());
+                printWriter.write(messageToDesktop);
+                printWriter.flush();
+                printWriter.close();
+                socket.close();
+
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+
+            return null;
+        }
+    }
+
+    //
 
     //z tego nie korzystamy
     public void talkClick(View v) {
@@ -846,6 +916,8 @@ public class MainActivity extends AppCompatActivity {
 
         }
     }
+
+
 }
 
 
