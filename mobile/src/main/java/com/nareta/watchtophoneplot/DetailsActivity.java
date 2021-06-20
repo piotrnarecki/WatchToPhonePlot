@@ -3,7 +3,7 @@ package com.nareta.watchtophoneplot;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Environment;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
@@ -12,32 +12,28 @@ import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.Toast;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.util.UUID;
 
 public class DetailsActivity extends AppCompatActivity {
 
     //elementy GUI
     private EditText nameInput;
+    private EditText idInput;
     private Switch sexSwitch;
+    private Switch headSwitch;
     private EditText ageInput;
-    private EditText daytimeInput;
-    private EditText otherInput;
     private Button saveButton;
 
     //pola
-
     private String ID;
     private String name;
     private String sex;
+    private String head;
     private int age;
-    private String daytime;
-    private String other;
+
 
 
     @Override
@@ -49,10 +45,11 @@ public class DetailsActivity extends AppCompatActivity {
 
         //referencje
         nameInput = (EditText) findViewById(R.id.nameInput);
+        idInput = (EditText) findViewById(R.id.idInput);
         sexSwitch = (Switch) findViewById(R.id.sexSwitch);
         ageInput = (EditText) findViewById(R.id.ageInput);
-        daytimeInput = (EditText) findViewById(R.id.daytimeInput);
-        otherInput = (EditText) findViewById(R.id.otherInput);
+
+        headSwitch = (Switch) findViewById(R.id.headSwitch);
         saveButton = (Button) findViewById(R.id.saveButton);
 
 
@@ -63,7 +60,7 @@ public class DetailsActivity extends AppCompatActivity {
     public void saveButtonPressed(View view) {
 
 
-        if (nameInput != null && ageInput != null && daytimeInput != null && otherInput != null) {
+        if (nameInput != null && ageInput != null ) {
             name = nameInput.getText().toString();
 
             if (sexSwitch.isChecked()) {
@@ -72,19 +69,21 @@ public class DetailsActivity extends AppCompatActivity {
                 sex = "male";
             }
 
-            age = Integer.valueOf(ageInput.getText().toString());
-            daytime = daytimeInput.getText().toString();
-            other = otherInput.getText().toString();
+            if (headSwitch.isChecked()) {
+                head = "head is damaged";
+            } else {
+                head = "head is ok";
+            }
 
+
+            age = Integer.valueOf(ageInput.getText().toString());
+
+            ID = (idInput.getText().toString());
 
             //zapis do pliku
-
-            ID = UUID.randomUUID().toString();
-
-
             String fileName = ID + "_details" + ".txt";
 
-            String details = name + '\n' + sex + '\n' + age + '\n' + daytime + '\n' + other;
+            String details = name + '\n' + sex + '\n' + age + '\n' + head ;
 
 
             //tworzenie pliku
@@ -103,10 +102,6 @@ public class DetailsActivity extends AppCompatActivity {
                 e.printStackTrace();
                 Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
             }
-
-
-            //
-
 
             Intent intent = new Intent(getApplicationContext(), MainActivity.class);
             intent.putExtra("ID", ID);
@@ -146,7 +141,6 @@ public class DetailsActivity extends AppCompatActivity {
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             fileOutputStream.write(content.getBytes());
             fileOutputStream.close();
-            //Toast.makeText(this, "Saved" + " type: " + Toast.LENGTH_SHORT).show();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show();
@@ -155,8 +149,6 @@ public class DetailsActivity extends AppCompatActivity {
             Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
         }
 
-
     }
-
 
 }

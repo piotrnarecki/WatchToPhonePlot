@@ -13,9 +13,9 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.support.annotation.NonNull;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
     private Button restartButton;
 
 
-    private Switch sendToDesktopSwitch;
+//    private Switch sendToDesktopSwitch;
 
 
     protected Handler myHandler;
@@ -140,9 +140,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); //  aplikacja dziala tylko w pionie
+        this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
-//referecje
+
         textview = (TextView) findViewById(R.id.textView);
         timeOutput = (TextView) findViewById(R.id.timeOutput);
         measureTypeSwitch = (Switch) findViewById(R.id.measureTypeSwitch);
@@ -153,10 +153,9 @@ public class MainActivity extends AppCompatActivity {
         restartButton = (Button) findViewById(R.id.restartButton);
 
 
-        sendToDesktopSwitch = (Switch) findViewById(R.id.sendToDesktopSwitch);
+//        sendToDesktopSwitch = (Switch) findViewById(R.id.sendToDesktopSwitch);
 
 
-        //dane z poprzedniej aktywności
         Bundle data = getIntent().getExtras();
         if (data != null) {
             ID = data.getString("ID");
@@ -384,9 +383,9 @@ public class MainActivity extends AppCompatActivity {
         hrLeftAxis.setTextColor(Color.WHITE);
         hrLeftAxis.setDrawGridLines(false);
 
-        //skala osi y
-        hrLeftAxis.setAxisMaximum(110f);
-        hrLeftAxis.setAxisMinimum(60f);
+        //skala osi y HR
+        hrLeftAxis.setAxisMaximum(160f);
+        hrLeftAxis.setAxisMinimum(70f);
 
 
         hrLeftAxis.setDrawGridLines(true);
@@ -427,7 +426,8 @@ public class MainActivity extends AppCompatActivity {
 
     //metoda zapisująca
     private void saveTextAsFile(String filename, String content) {
-        String fileName = filename + ".txt";
+        String fileName = filename + ".txt";    //     String fileName = filename + ".txt";
+
 
         //tworzenie pliku
         File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), fileName);
@@ -437,7 +437,7 @@ public class MainActivity extends AppCompatActivity {
             FileOutputStream fileOutputStream = new FileOutputStream(file);
             fileOutputStream.write(content.getBytes());
             fileOutputStream.close();
-            Toast.makeText(this, "Saved" + " type: " + measureType, Toast.LENGTH_SHORT).show();
+         //   Toast.makeText(this, "Saved" + " type: " + measureType, Toast.LENGTH_SHORT).show();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show();
@@ -601,7 +601,6 @@ public class MainActivity extends AppCompatActivity {
             }
 
 
-            //String.valueOf(i+1) oznacza sekunde pomiaru // DOPRACOWAC GDY POMIAR BEDZIE WYKONYWANY CO 0,5s
 
         }
 
@@ -778,7 +777,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (message.equalsIgnoreCase("finish")) {
 
-                sendToDesktopSwitch.setChecked(false);
+//                sendToDesktopSwitch.setChecked(false);
 
                 finish();
             } else {
@@ -795,10 +794,10 @@ public class MainActivity extends AppCompatActivity {
                 //przesyl do pc
 
 
-                if (sendToDesktopSwitch.isChecked()) {
-
-                    sendToDesktop();
-                }
+//                if (sendToDesktopSwitch.isChecked()) {
+//
+//                    sendToDesktop();
+//                }
 
 
                 //
@@ -813,39 +812,43 @@ public class MainActivity extends AppCompatActivity {
 
     // przesyl do pc
 
-    public void sendToDesktop() {
+//    public void sendToDesktop() {
+//
+//
+//        messageToDesktop = heartRate + " BPM " + "X=" + xAcc + " Y=" + yAcc + " Z=" + zAcc;
+//        MyTask myTask = new MyTask();
+//        myTask.execute();
+//         Toast.makeText(getApplicationContext(), "Data sent", Toast.LENGTH_LONG).show();  // zakomentowac
+//    }
 
-
-        messageToDesktop = heartRate + " BPM " + "X=" + xAcc + " Y=" + yAcc + " Z=" + zAcc;
-        MyTask myTask = new MyTask();
-        myTask.execute();
-        // Toast.makeText(getApplicationContext(), "Data sent", Toast.LENGTH_LONG).show();
-    }
-
-    class MyTask extends AsyncTask<Void, Void, Void> {
-        @Override
-        protected Void doInBackground(Void... voids) {
-
-            try {
-
-
-                socket = new Socket(IP, 5000);
-
-                printWriter = new PrintWriter(socket.getOutputStream());
-                printWriter.write(messageToDesktop);
-                printWriter.flush();
-                printWriter.close();
-                socket.close();
-
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-
-            return null;
-        }
-    }
+//    class MyTask extends AsyncTask<Void, Void, Void> {
+//        @Override
+//        protected Void doInBackground(Void... voids) {
+//
+//            try {
+//
+//
+//                socket = new Socket(IP, 5000);
+//
+//
+//
+//
+//
+//                printWriter = new PrintWriter(socket.getOutputStream());
+//                printWriter.write(messageToDesktop);
+//                printWriter.flush();
+//                printWriter.close();
+//                socket.close();
+//
+//
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//
+//
+//            return null;
+//        }
+//    }
 
     //
 

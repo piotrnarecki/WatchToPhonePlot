@@ -10,13 +10,12 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.support.wearable.activity.WearableActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import com.google.android.gms.tasks.Task;
@@ -24,7 +23,6 @@ import com.google.android.gms.tasks.Tasks;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.Wearable;
 
-import java.lang.reflect.Array;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -204,11 +202,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             hrOutput.setText(heartRate + " BMP");
 
         }
-
-        //sensorsMessage = accOutputText + '\n' + "heart rate " + heartRate + " BPM";
         sensorsMessage = xAcc + ";" + yAcc + ";" + zAcc + ";" + heartRate;
-
-
     }
 
     @Override
@@ -225,79 +219,30 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     protected void onDestroy() {
         super.onDestroy();
     }
-//PRZESYL DANYCH
-
-
-//    public class Receiver extends BroadcastReceiver {
-//        @Override
-//        public void onReceive(Context context, Intent intent) {
-//            String onMessageReceived = "I just received a  message from the handheld " + receivedMessageNumber++;
-//
-//
-//
-//
-//        }
-//    }
 
     class SendMessage extends Thread {
         String path;
         String message;
-
-//Constructor///
-
         SendMessage(String p, String m) {
             path = p;
             message = m;
         }
-
-//Send the message via the thread. This will send the message to all the currently-connected devices//
-
         public void run() {
-
-//Get all the nodes//
-
             Task<List<Node>> nodeListTask =
                     Wearable.getNodeClient(getApplicationContext()).getConnectedNodes();
             try {
-
-//Block on a task and get the result synchronously//
-
                 List<Node> nodes = Tasks.await(nodeListTask);
-
-//Send the message to each device//
-
                 for (Node node : nodes) {
                     Task<Integer> sendMessageTask =
                             Wearable.getMessageClient(MainActivity.this).sendMessage(node.getId(), path, message.getBytes());
-
                     try {
-
-
                         Integer result = Tasks.await(sendMessageTask);
-
-
-//Handle the errors//
-
                     } catch (ExecutionException exception) {
-
-//TO DO//
-
                     } catch (InterruptedException exception) {
-
-//TO DO//
-
                     }
-
                 }
-
             } catch (ExecutionException exception) {
-
-//TO DO//
-
             } catch (InterruptedException exception) {
-
-//TO DO//
-
             }
         }
     }
